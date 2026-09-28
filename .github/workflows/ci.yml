@@ -1,0 +1,62 @@
+name: evaluation-ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Preserve existing test semantics
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python3 - <<'PY'
+          import ast
+          import os
+          from pathlib import Path
+          import subprocess
+
+          def tests(source):
+              tree = ast.parse(source)
+              result = {}
+              for node in ast.walk(tree):
+                  if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith('test_'):
+                      if node.name in result:
+                          raise SystemExit('duplicate test name: ' + node.name)
+                      result[node.name] = ast.dump(node, include_attributes=False)
+              return result
+
+          base = subprocess.check_output(['git', 'show', os.environ['BASE_SHA'] + ':test_calc.py'])
+          before = tests(base)
+          after = tests(Path('test_calc.py').read_bytes())
+          missing = sorted(set(before) - set(after))
+          weakened = sorted(name for name in before.keys() & after.keys() if before[name] != after[name])
+          if missing or weakened:
+              raise SystemExit(f'pre-existing tests removed or changed: missing={missing}, changed={weakened}')
+          tree = ast.parse(Path('test_calc.py').read_text())
+          for node in ast.walk(tree):
+              if isinstance(node, ast.Call):
+                  name = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, 'id', '')
+                  if name in {'skip', 'skipIf', 'skipUnless', 'expectedFailure'}:
+                      raise SystemExit('test skip/expectedFailure is forbidden')
+          print(f'preserved {len(before)} existing tests')
+          PY
+
+      - name: Full test suite
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 -m unittest discover -s . -p 'test_*.py' -v
