@@ -11,3 +11,7 @@ def multiply(left: int, right: int) -> int:
 
 def cube(value: int) -> int:
     return value * value * value
+
+
+def negate(value: int) -> int:
+    return -value
