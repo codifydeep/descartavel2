@@ -1,6 +1,6 @@
 import unittest
 
-from calc import add, multiply
+from calc import add, cube, multiply
 
 
 class CalcTests(unittest.TestCase):
@@ -23,3 +23,11 @@ class MultiplyTests(unittest.TestCase):
 
     def test_multiply_commutative(self):
         self.assertEqual(multiply(7, 3), multiply(3, 7))
+
+
+class CubeTests(unittest.TestCase):
+    def test_cube_positive(self):
+        self.assertEqual(cube(3), 27)
+
+    def test_cube_negative(self):
+        self.assertEqual(cube(-2), -8)
