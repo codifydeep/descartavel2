@@ -60,3 +60,25 @@ jobs:
         env:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 -m unittest discover -s . -p 'test_*.py' -v
+
+      - name: Preserve portable fixture tests
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import subprocess
+
+          base = os.environ['BASE_SHA']
+          paths = subprocess.check_output(
+              ['git', 'ls-tree', '-r', '--name-only', base, 'slug_tests'], text=True
+          ).splitlines()
+          for path in paths:
+              original = subprocess.check_output(['git', 'show', base + ':' + path])
+              current = Path(path)
+              if not current.is_file() or current.is_symlink() or current.read_bytes() != original:
+                  raise SystemExit('pre-existing portable fixture test changed: ' + path)
+          print('preserved', len(paths), 'portable fixture baseline files')
+          PY
