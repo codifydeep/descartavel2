@@ -5,6 +5,7 @@ import unicodedata
 
 def _transliterate(text):
     text = text.replace('ß', 'ss').replace('ẞ', 'ss')
+    text = text.replace('Æ', 'ae').replace('æ', 'ae')
     decomposed = unicodedata.normalize('NFKD', text)
     return ''.join(ch for ch in decomposed if not unicodedata.combining(ch))
 
