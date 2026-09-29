@@ -15,4 +15,12 @@ function tierForScore(points) {
   return points >= 50 ? "silver" : "bronze";
 }
 
-module.exports = { scoreLabel, tierForScore };
+function pointsToNextTier(points) {
+  if (!Number.isFinite(points) || points < 0) {
+    throw new RangeError("points must be a nonnegative finite number");
+  }
+  if (points >= 100) return 0;
+  return (points >= 50 ? 100 : 50) - points;
+}
+
+module.exports = { scoreLabel, tierForScore, pointsToNextTier };
