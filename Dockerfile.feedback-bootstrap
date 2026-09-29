@@ -1,0 +1,9 @@
+FROM delivery-kit-hermes-runtime@sha256:6445719a1d1c5866f6c6f7b4affe45dd8f16ada952506036d0a8145a072de0bf
+ARG SOURCE_SHA
+ENV SOURCE_SHA=${SOURCE_SHA}
+LABEL delivery-kit.source-sha="${SOURCE_SHA}"
+WORKDIR /app
+COPY app/ /app/
+USER 10000:10000
+EXPOSE 8080
+CMD ["python", "/app/server.py"]
