@@ -1,9 +1,15 @@
 """Disposable text URL fixture for portable delivery qualification."""
 import re
+import unicodedata
+
+
+def _transliterate(text):
+    decomposed = unicodedata.normalize('NFKD', text)
+    return ''.join(ch for ch in decomposed if not unicodedata.combining(ch))
 
 
 def slugify(text):
-    return re.sub(r'[^a-z0-9]+', '-', text.lower()).strip('-')
+    return re.sub(r'[^a-z0-9]+', '-', _transliterate(text).lower()).strip('-')
 
 
 def truncate_slug(text, max_length):
