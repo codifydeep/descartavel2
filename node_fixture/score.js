@@ -23,4 +23,11 @@ function pointsToNextTier(points) {
   return (points >= 50 ? 100 : 50) - points;
 }
 
-module.exports = { scoreLabel, tierForScore, pointsToNextTier };
+function scoreSummary(points) {
+  return {
+    tier: tierForScore(points),
+    pointsToNextTier: pointsToNextTier(points),
+  };
+}
+
+module.exports = { scoreLabel, tierForScore, pointsToNextTier, scoreSummary };
