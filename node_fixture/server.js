@@ -9,7 +9,7 @@ http.createServer((request, response) => {
   try {
     if (url.pathname === "/health") {
       body = { status: "ok" };
-    } else if (["/label", "/tier", "/progress", "/summary"].includes(url.pathname)) {
+    } else if (["/label", "/tier", "/progress", "/summary", "/percent", "/overview"].includes(url.pathname)) {
       const raw = url.searchParams.get("points");
       if (raw === null || raw.trim() === "") throw new RangeError("missing points");
       const points = Number(raw);
@@ -18,6 +18,8 @@ http.createServer((request, response) => {
         "/tier": score.tierForScore,
         "/progress": score.pointsToNextTier,
         "/summary": score.scoreSummary,
+        "/percent": score.tierProgressPercent,
+        "/overview": score.scoreOverview,
       };
       const operation = operations[url.pathname];
       if (typeof operation !== "function") {
