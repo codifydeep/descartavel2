@@ -38,4 +38,13 @@ function scoreSummary(points) {
   };
 }
 
-module.exports = { scoreLabel, tierForScore, pointsToNextTier, tierProgressPercent, scoreSummary };
+function scoreOverview(points) {
+  const summary = scoreSummary(points);
+  return {
+    tier: summary.tier,
+    pointsToNextTier: summary.pointsToNextTier,
+    tierProgressPercent: tierProgressPercent(points),
+  };
+}
+
+module.exports = { scoreLabel, tierForScore, pointsToNextTier, tierProgressPercent, scoreSummary, scoreOverview };
