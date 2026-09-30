@@ -83,6 +83,18 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith('/static/'):
             self._send_static(unquote(path[len('/static/'):]))
             return
+        if path == '/feedback/summary':
+            conn = db.connect()
+            try:
+                items = db.list_items(conn)
+            finally:
+                conn.close()
+            total = len(items)
+            completed = sum(1 for item in items if item['completed'])
+            self._send_json(200, {'total': total,
+                                  'completed': completed,
+                                  'open': total - completed})
+            return
         if path == '/feedback':
             conn = db.connect()
             try:
