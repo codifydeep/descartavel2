@@ -2,12 +2,22 @@
 import json
 import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 try:  # imported as ``app.server`` (tests) or executed as a script (container)
     from . import db
 except ImportError:  # pragma: no cover - direct script execution path
     import db
+
+
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+
+# Explicit map keeps served content types stable across hosts and images.
+_CONTENT_TYPES = {
+    '.html': 'text/html; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.js': 'text/javascript; charset=utf-8',
+}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -32,6 +42,26 @@ class Handler(BaseHTTPRequestHandler):
         except (UnicodeDecodeError, ValueError):
             return None
 
+    def _send_static(self, name):
+        """Serve a file from ``STATIC_DIR``, refusing anything outside it."""
+        root = os.path.realpath(STATIC_DIR)
+        target = os.path.realpath(os.path.join(root, name))
+        if target != root and not target.startswith(root + os.sep):
+            self.send_error(404)
+            return
+        if not os.path.isfile(target):
+            self.send_error(404)
+            return
+        extension = os.path.splitext(target)[1].lower()
+        content_type = _CONTENT_TYPES.get(extension, 'application/octet-stream')
+        with open(target, 'rb') as handle:
+            body = handle.read()
+        self.send_response(200)
+        self.send_header('Content-Type', content_type)
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
         path = urlsplit(self.path).path
         if path == '/health':
@@ -42,6 +72,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header('Content-Length', str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+            return
+        if path == '/':
+            self._send_static('index.html')
+            return
+        if path.startswith('/static/'):
+            self._send_static(unquote(path[len('/static/'):]))
             return
         if path == '/feedback':
             conn = db.connect()

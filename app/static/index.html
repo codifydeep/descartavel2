@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Feedback Board</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="board-header">
+    <h1>Feedback Board</h1>
+    <p class="board-subtitle">Share an idea, then track it through to done.</p>
+  </header>
+
+  <main class="board">
+    <form id="feedback-form" class="feedback-form" autocomplete="off">
+      <label for="title">Title</label>
+      <input id="title" name="title" type="text" maxlength="200" required
+             placeholder="Short summary">
+
+      <label for="description">Description</label>
+      <textarea id="description" name="description" rows="3"
+                placeholder="Optional details"></textarea>
+
+      <button type="submit">Submit feedback</button>
+      <p id="form-status" class="form-status" role="status" aria-live="polite"></p>
+    </form>
+
+    <section class="feedback-section">
+      <h2>Submitted feedback</h2>
+      <p id="empty-state" class="empty-state">
+        No feedback yet. Add the first item using the form above.
+      </p>
+      <ul id="feedback-list" class="feedback-list"></ul>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

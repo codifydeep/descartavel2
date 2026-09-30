@@ -1,0 +1,127 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --ink: #1f2430;
+  --muted: #6b7280;
+  --accent: #2f6fed;
+  --error: #c0392b;
+  --done: #2e8b57;
+  --border: #d7dae0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 2rem 1rem 3rem;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+.board-header,
+.board {
+  max-width: 42rem;
+  margin: 0 auto;
+}
+
+.board-header h1 {
+  margin: 0 0 0.25rem;
+}
+
+.board-subtitle {
+  margin: 0 0 1.5rem;
+  color: var(--muted);
+}
+
+.feedback-form,
+.feedback-section {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.feedback-form label {
+  display: block;
+  font-weight: 600;
+  margin: 0.5rem 0 0.25rem;
+}
+
+.feedback-form input,
+.feedback-form textarea {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.feedback-form button {
+  margin-top: 0.9rem;
+  padding: 0.55rem 1.1rem;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.form-status {
+  min-height: 1.2em;
+  margin: 0.6rem 0 0;
+  color: var(--muted);
+}
+
+.form-status.is-error {
+  color: var(--error);
+}
+
+.empty-state {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.feedback-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.feedback-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.feedback-item.is-complete .feedback-title {
+  text-decoration: line-through;
+  color: var(--done);
+}
+
+.complete-button {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.complete-button[disabled] {
+  cursor: default;
+  color: var(--done);
+  border-color: var(--done);
+}
