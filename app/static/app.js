@@ -67,9 +67,16 @@ function loadFeedback() {
     });
 }
 
-// Read the board counts and paint them into the summary region. Transient
-// failures keep the previous counts; the next refresh retries.
+// Read the board counts into the accessible summary region. The region is
+// resolved first so a board served without it stays inert, and it reports
+// aria-busy while the counts are in flight. Transient failures keep the
+// previous counts; the next refresh retries.
 function loadSummary() {
+  var region = document.getElementById('feedback-summary');
+  if (!region) {
+    return Promise.resolve();
+  }
+  region.setAttribute('aria-busy', 'true');
   return fetch('/feedback/summary', { headers: { Accept: 'application/json' } })
     .then(function (response) {
       if (!response.ok) {
@@ -78,12 +85,15 @@ function loadSummary() {
       return response.json();
     })
     .then(function (data) {
-      document.getElementById('summary-total').textContent = data.total;
-      document.getElementById('summary-open').textContent = data.open;
-      document.getElementById('summary-completed').textContent = data.completed;
+      region.querySelector('#summary-total').textContent = data.total;
+      region.querySelector('#summary-open').textContent = data.open;
+      region.querySelector('#summary-completed').textContent = data.completed;
     })
     .catch(function () {
       // Stay quiet on transient summary errors; the next refresh retries.
+    })
+    .then(function () {
+      region.setAttribute('aria-busy', 'false');
     });
 }
 
