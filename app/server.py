@@ -54,6 +54,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         extension = os.path.splitext(target)[1].lower()
         content_type = _CONTENT_TYPES.get(extension, 'application/octet-stream')
+        # Disposable qualification fault: only the deployed image serves CSS
+        # with the wrong type, so the exact-SHA HTTP QA must reject this PR.
+        if (extension == '.css' and os.environ.get('SOURCE_SHA')
+                and os.environ['SOURCE_SHA'] !=
+                '32c053a20e43b99be077db7a9d1a36cf771c4891'):
+            content_type = 'text/plain; charset=utf-8'
         with open(target, 'rb') as handle:
             body = handle.read()
         self.send_response(200)
