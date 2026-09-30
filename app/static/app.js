@@ -1,0 +1,128 @@
+'use strict';
+
+// Feedback board client. Lists feedback, submits new items, toggles completion,
+// and polls the API so a second browser stays in sync.
+
+var FORM_ID = 'feedback-form';
+var LIST_ID = 'feedback-list';
+var EMPTY_ID = 'empty-state';
+var STATUS_ID = 'form-status';
+var POLL_MS = 2000;
+
+var form = document.getElementById(FORM_ID);
+var list = document.getElementById(LIST_ID);
+var emptyState = document.getElementById(EMPTY_ID);
+var status = document.getElementById(STATUS_ID);
+
+function setStatus(message, isError) {
+  status.textContent = message || '';
+  status.classList.toggle('is-error', Boolean(isError));
+}
+
+function renderItems(items) {
+  list.innerHTML = '';
+  if (!items.length) {
+    emptyState.hidden = false;
+    return;
+  }
+  emptyState.hidden = true;
+  items.forEach(function (item) {
+    var entry = document.createElement('li');
+    entry.className = 'feedback-item' + (item.completed ? ' is-complete' : '');
+
+    var label = document.createElement('span');
+    label.className = 'feedback-title';
+    label.textContent = item.title;
+    entry.appendChild(label);
+
+    var toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'complete-button';
+    toggle.textContent = item.completed ? 'Completed' : 'Mark complete';
+    toggle.disabled = item.completed;
+    toggle.addEventListener('click', function () {
+      completeItem(item.id);
+    });
+    entry.appendChild(toggle);
+
+    list.appendChild(entry);
+  });
+}
+
+function loadFeedback() {
+  return fetch('/feedback', { headers: { Accept: 'application/json' } })
+    .then(function (response) {
+      if (!response.ok) {
+        throw new Error('Unable to load feedback right now.');
+      }
+      return response.json();
+    })
+    .then(function (data) {
+      renderItems(data.items || []);
+    });
+}
+
+function completeItem(id) {
+  return fetch('/feedback/' + id + '/complete', { method: 'POST' })
+    .then(function (response) {
+      return response.json().catch(function () { return {}; }).then(function (data) {
+        if (!response.ok) {
+          throw new Error(data.error || 'Unable to update that item.');
+        }
+        return data;
+      });
+    })
+    .then(function () {
+      return loadFeedback();
+    })
+    .catch(function (error) {
+      setStatus(error.message, true);
+    });
+}
+
+function submitFeedback(event) {
+  event.preventDefault();
+  var title = form.elements.title.value.trim();
+  var description = form.elements.description.value.trim();
+
+  if (!title) {
+    setStatus('Please enter a title before submitting.', true);
+    return;
+  }
+
+  setStatus('Submitting...', false);
+  fetch('/feedback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: title, description: description })
+  })
+    .then(function (response) {
+      return response.json().catch(function () { return {}; }).then(function (data) {
+        if (!response.ok) {
+          throw new Error(data.error || 'Unable to submit feedback.');
+        }
+        return data;
+      });
+    })
+    .then(function () {
+      form.reset();
+      setStatus('Thanks! Your feedback was added.', false);
+      return loadFeedback();
+    })
+    .catch(function (error) {
+      setStatus(error.message, true);
+    });
+}
+
+form.addEventListener('submit', submitFeedback);
+
+loadFeedback().catch(function (error) {
+  setStatus(error.message, true);
+});
+
+// Poll so every open board reflects changes made in another browser.
+setInterval(function () {
+  loadFeedback().catch(function () {
+    // Stay quiet on transient polling errors; the next tick retries.
+  });
+}, POLL_MS);
