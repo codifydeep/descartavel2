@@ -73,6 +73,10 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if path == '/ready':
+            self._send_json(200, {'status': 'ready',
+                                  'source_sha': os.environ.get('SOURCE_SHA', 'local')})
+            return
         if path == '/':
             self._send_static('index.html')
             return
