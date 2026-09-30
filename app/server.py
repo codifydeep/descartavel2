@@ -54,8 +54,6 @@ class Handler(BaseHTTPRequestHandler):
             return
         extension = os.path.splitext(target)[1].lower()
         content_type = _CONTENT_TYPES.get(extension, 'application/octet-stream')
-        if extension == '.js' and os.environ.get('SOURCE_SHA'):
-            content_type = 'text/javascript; charset=utf-8'
         with open(target, 'rb') as handle:
             body = handle.read()
         self.send_response(200)
