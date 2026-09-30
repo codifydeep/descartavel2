@@ -1,7 +1,12 @@
+loadSummary();
 'use strict';
 
 // Feedback board client. Lists feedback, submits new items, toggles completion,
 // and polls the API so a second browser stays in sync.
+//
+// The initial summary refresh is the first statement the script runs, so the
+// counts are requested as soon as the script executes; loadSummary is a hoisted
+// function declaration, so calling it before its definition is safe.
 
 var FORM_ID = 'feedback-form';
 var LIST_ID = 'feedback-list';
@@ -62,6 +67,26 @@ function loadFeedback() {
     });
 }
 
+// Read the board counts and paint them into the summary region. Transient
+// failures keep the previous counts; the next refresh retries.
+function loadSummary() {
+  return fetch('/feedback/summary', { headers: { Accept: 'application/json' } })
+    .then(function (response) {
+      if (!response.ok) {
+        throw new Error('Unable to load the summary right now.');
+      }
+      return response.json();
+    })
+    .then(function (data) {
+      document.getElementById('summary-total').textContent = data.total;
+      document.getElementById('summary-open').textContent = data.open;
+      document.getElementById('summary-completed').textContent = data.completed;
+    })
+    .catch(function () {
+      // Stay quiet on transient summary errors; the next refresh retries.
+    });
+}
+
 function completeItem(id) {
   return fetch('/feedback/' + id + '/complete', { method: 'POST' })
     .then(function (response) {
@@ -73,6 +98,7 @@ function completeItem(id) {
       });
     })
     .then(function () {
+      loadSummary();
       return loadFeedback();
     })
     .catch(function (error) {
@@ -107,6 +133,7 @@ function submitFeedback(event) {
     .then(function () {
       form.reset();
       setStatus('Thanks! Your feedback was added.', false);
+      loadSummary();
       return loadFeedback();
     })
     .catch(function (error) {
@@ -122,6 +149,7 @@ loadFeedback().catch(function (error) {
 
 // Poll so every open board reflects changes made in another browser.
 setInterval(function () {
+  loadSummary();
   loadFeedback().catch(function () {
     // Stay quiet on transient polling errors; the next tick retries.
   });
