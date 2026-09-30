@@ -13,6 +13,20 @@
   </header>
 
   <main class="board">
+    <section id="feedback-summary" class="feedback-section feedback-summary"
+             role="status" aria-live="polite"
+             aria-labelledby="feedback-summary-heading">
+      <h2 id="feedback-summary-heading">Feedback summary</h2>
+      <dl class="summary-counts">
+        <dt>Total</dt>
+        <dd id="summary-total">0</dd>
+        <dt>Open</dt>
+        <dd id="summary-open">0</dd>
+        <dt>Completed</dt>
+        <dd id="summary-completed">0</dd>
+      </dl>
+    </section>
+
     <form id="feedback-form" class="feedback-form" autocomplete="off">
       <label for="title">Title</label>
       <input id="title" name="title" type="text" maxlength="200" required
