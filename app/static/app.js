@@ -120,8 +120,29 @@ function completeItem(id) {
     });
 }
 
+// The form's Submit control and a pending guard. While a valid submission POST
+// is in flight the button is disabled and further submit events -- including
+// programmatically dispatched ones -- are ignored, so exactly one POST is issued
+// per attempt. The guard is cleared on every exit path (success, HTTP failure or
+// transport failure) so a later attempt can proceed; empty-title validation
+// returns before the guard is set, so it never locks the form.
+var submitButton = form.querySelector('button[type="submit"]');
+var isSubmitting = false;
+
+function setSubmitting(pending) {
+  isSubmitting = pending;
+  if (submitButton) {
+    submitButton.disabled = pending;
+  }
+}
+
 function submitFeedback(event) {
   event.preventDefault();
+
+  if (isSubmitting) {
+    return;
+  }
+
   var title = form.elements.title.value.trim();
   var description = form.elements.description.value.trim();
 
@@ -130,6 +151,7 @@ function submitFeedback(event) {
     return;
   }
 
+  setSubmitting(true);
   setStatus('Submitting...', false);
   fetch('/feedback', {
     method: 'POST',
@@ -152,6 +174,9 @@ function submitFeedback(event) {
     })
     .catch(function (error) {
       setStatus(error.message, true);
+    })
+    .then(function () {
+      setSubmitting(false);
     });
 }
 
