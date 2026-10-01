@@ -2,7 +2,7 @@
 import json
 import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 try:  # imported as ``app.server`` (tests) or executed as a script (container)
     from . import db
@@ -84,11 +84,30 @@ class Handler(BaseHTTPRequestHandler):
             self._send_static(unquote(path[len('/static/'):]))
             return
         if path == '/feedback':
+            # The status filter is the single ``status`` query parameter. It is
+            # absent for the UI's All tab, which must stay byte-compatible with
+            # the legacy body; ``open`` and ``completed`` narrow the list. Any
+            # other shape -- an empty value, an explicit ``all``, an unknown
+            # value, repeated keys or an empty token alongside a valid one --
+            # is rejected outright rather than silently treated as All.
+            occurrences = parse_qs(urlsplit(self.path).query, keep_blank_values=True)
+            values = occurrences.get('status')
+            if values is None:
+                wanted = None
+            elif len(values) == 1 and values[0] in ('open', 'completed'):
+                wanted = values[0] == 'completed'
+            else:
+                self._send_json(400, {'error': (
+                    "invalid status filter: expected 'open' or 'completed'; "
+                    "omit the parameter to list every entry")})
+                return
             conn = db.connect()
             try:
                 items = db.list_items(conn)
             finally:
                 conn.close()
+            if wanted is not None:
+                items = [item for item in items if item['completed'] is wanted]
             self._send_json(200, {'items': items})
             return
         if path == '/feedback/summary':
