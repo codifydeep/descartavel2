@@ -194,6 +194,26 @@ function submitFeedback(event) {
 
 form.addEventListener('submit', submitFeedback);
 
+// Keyboard dismissal. A keydown with key 'Escape' that bubbles to the form
+// dismisses the current status message and its is-error class -- but only while
+// no submission is pending, so the 'Submitting...' message stays visible for an
+// unresolved POST and the pending guard (button, aria-busy, POST) is untouched.
+// Clearing reuses setStatus, which coerces the text and toggles is-error off;
+// typed title/description, the board, focus and the enabled button are left
+// exactly as they were, and no submit, reload or form reset occurs. Any other
+// key falls through, and a repeated Escape with an empty status is a no-op.
+function dismissStatusOnEscape(event) {
+  if (event.key !== 'Escape') {
+    return;
+  }
+  if (isSubmitting) {
+    return;
+  }
+  setStatus('', false);
+}
+
+form.addEventListener('keydown', dismissStatusOnEscape);
+
 loadFeedback().catch(function (error) {
   setStatus(error.message, true);
 });
