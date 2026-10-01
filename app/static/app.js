@@ -17,7 +17,11 @@ var POLL_MS = 2000;
 var form = document.getElementById(FORM_ID);
 var list = document.getElementById(LIST_ID);
 var emptyState = document.getElementById(EMPTY_ID);
-var status = document.getElementById(STATUS_ID);
+// Bind the status region with `let`, not `var`: a top-level `var status` is the
+// native `Window.status` property (a string), which would silently coerce this
+// element and break every setStatus write. `let` keeps it a block-scoped local
+// so the element reference survives.
+let status = document.getElementById(STATUS_ID);
 
 function setStatus(message, isError) {
   status.textContent = message || '';
