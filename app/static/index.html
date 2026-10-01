@@ -42,6 +42,15 @@
 
     <section class="feedback-section">
       <h2>Submitted feedback</h2>
+      <div id="feedback-filter" class="feedback-filter" role="group"
+           aria-label="Filter feedback by state">
+        <button id="filter-all" type="button" class="filter-button"
+                aria-pressed="true">All</button>
+        <button id="filter-open" type="button" class="filter-button"
+                aria-pressed="false">Open</button>
+        <button id="filter-completed" type="button" class="filter-button"
+                aria-pressed="false">Completed</button>
+      </div>
       <p id="empty-state" class="empty-state">
         No feedback yet. Add the first item using the form above.
       </p>
