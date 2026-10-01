@@ -129,12 +129,24 @@ function completeItem(id) {
 var submitButton = form.querySelector('button[type="submit"]');
 var isSubmitting = false;
 
+// Announce the pending state to assistive technology on the form itself: the
+// attribute is the string 'false' at rest and 'true' only while a valid POST
+// is unresolved. It is written on the same transitions as the guard, so every
+// exit path (success, HTTP failure, transport failure) closes it and a later
+// retry re-announces 'true'.
+function setBusy(pending) {
+  form.setAttribute('aria-busy', pending ? 'true' : 'false');
+}
+
 function setSubmitting(pending) {
   isSubmitting = pending;
   if (submitButton) {
     submitButton.disabled = pending;
   }
+  setBusy(pending);
 }
+
+setBusy(false);
 
 function submitFeedback(event) {
   event.preventDefault();
