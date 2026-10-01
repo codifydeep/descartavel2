@@ -23,6 +23,123 @@ var emptyState = document.getElementById(EMPTY_ID);
 // so the element reference survives.
 let status = document.getElementById(STATUS_ID);
 
+// -- Filter state ------------------------------------------------------------
+// The active filter is page-scope memory only: a single module-local variable,
+// never mirrored into the URL or into storage, so two browsers on the same
+// board filter independently. It is written only by the filter control and read
+// by loadFeedback/renderItems; polling and successful create/complete re-read
+// it, so the selection survives them.
+var FILTER_ALL = 'all';
+var currentFilter = FILTER_ALL;
+
+var FILTER_CONTROL_IDS = {
+  all: 'filter-all',
+  open: 'filter-open',
+  completed: 'filter-completed'
+};
+
+var FILTER_QUERY = { all: null, open: 'open', completed: 'completed' };
+
+// Identity of the empty message per filter. All keeps the historical generic
+// copy so an empty board reads exactly as before; the narrowed filters say
+// which filter produced the empty list.
+var EMPTY_MESSAGES = {
+  all: 'No feedback yet. Add the first item using the form above.',
+  open: 'No open feedback right now. Everything submitted has been completed.',
+  completed: 'No completed feedback yet. Mark an item complete and it will show here.'
+};
+
+function emptyMessageFor(filter) {
+  return EMPTY_MESSAGES[filter] || EMPTY_MESSAGES[FILTER_ALL];
+}
+
+// Build the board GET for the active filter. All omits the status parameter
+// entirely (byte-compatible with the legacy request); open/completed append the
+// single status query parameter the backend contract accepts.
+function feedbackUrl(filter) {
+  var wanted = FILTER_QUERY[filter];
+  return wanted === null ? '/feedback' : '/feedback?status=' + wanted;
+}
+
+// Resolve a filter-control id back to the filter it selects. The reverse of
+// FILTER_CONTROL_IDS; anything outside the three controls resolves to null.
+var FILTER_BY_CONTROL_ID = {};
+Object.keys(FILTER_CONTROL_IDS).forEach(function (filter) {
+  FILTER_BY_CONTROL_ID[FILTER_CONTROL_IDS[filter]] = filter;
+});
+
+// -- Filter control ----------------------------------------------------------
+// Exactly one filter control is armed at a time: the active tab reports
+// aria-pressed="true" and, for observer parity, carries the is-active class,
+// while every other control is forced off. This makes the pressed state a
+// truthful, addressable expression of the page-scope currentFilter.
+function setActiveFilterControl(filter) {
+  Object.keys(FILTER_CONTROL_IDS).forEach(function (name) {
+    var control = document.getElementById(FILTER_CONTROL_IDS[name]);
+    if (!control) {
+      return;
+    }
+    var active = name === filter;
+    control.setAttribute('aria-pressed', active ? 'true' : 'false');
+    if (control.classList) {
+      control.classList.toggle('is-active', active);
+    }
+  });
+}
+
+// Apply a selected filter. The filter is page-scope memory only: nothing is
+// written to the URL or to storage, so two browsers on the same board may hold
+// different selections independently. Re-selecting the active filter is a
+// no-op that issues no requests; this keeps a switch from disturbing an
+// in-flight submit or the typed draft, because this path never resets the
+// form, touches the submit guard, or sets the status message.
+function applyFilter(filter) {
+  if (filter !== FILTER_ALL && filter !== 'open' && filter !== 'completed') {
+    return;
+  }
+  if (filter === currentFilter) {
+    return;
+  }
+  currentFilter = filter;
+  setActiveFilterControl(filter);
+  // Refresh the board and the whole-board counters for the new selection. The
+  // counters stay whole-board, so a switch never narrows them.
+  loadSummary();
+  loadFeedback().catch(function () {
+    // Stay quiet on transient filter-switch errors; the next poll retries.
+  });
+}
+
+// The filter buttons are bound directly by id. A delegation fallback on the
+// shared #feedback-filter root covers a document that renders the buttons
+// without ids, so the control is still addressable either way. Both paths read
+// the same three ids and call applyFilter, so they cannot diverge.
+function bindFilterControls() {
+  Object.keys(FILTER_CONTROL_IDS).forEach(function (name) {
+    var control = document.getElementById(FILTER_CONTROL_IDS[name]);
+    if (!control) {
+      return;
+    }
+    control.addEventListener('click', function () {
+      applyFilter(name);
+    });
+  });
+
+  var root = document.getElementById('feedback-filter');
+  if (root && root.addEventListener) {
+    root.addEventListener('click', function (event) {
+      var target = event && event.target;
+      var id = target && target.id;
+      if (id && FILTER_BY_CONTROL_ID[id]) {
+        applyFilter(FILTER_BY_CONTROL_ID[id]);
+      }
+    });
+  }
+}
+
+bindFilterControls();
+setActiveFilterControl(currentFilter);
+
 function setStatus(message, isError) {
   status.textContent = message || '';
   status.classList.toggle('is-error', Boolean(isError));
@@ -31,6 +148,9 @@ function setStatus(message, isError) {
 function renderItems(items) {
   list.innerHTML = '';
   if (!items.length) {
+    // The message names the active filter, so an empty filtered result explains
+    // itself rather than reusing the generic "no feedback yet" copy.
+    emptyState.textContent = emptyMessageFor(currentFilter);
     emptyState.hidden = false;
     return;
   }
@@ -58,8 +178,14 @@ function renderItems(items) {
   });
 }
 
+// Fetch the board for the active filter. The filter is captured when the
+// request is issued; when the response resolves the client discards it if the
+// active filter has since changed, so a slow poll under a previous filter can
+// never repaint the current view (and never paints a body the user no longer
+// asked for).
 function loadFeedback() {
-  return fetch('/feedback', { headers: { Accept: 'application/json' } })
+  var requestedFilter = currentFilter;
+  return fetch(feedbackUrl(requestedFilter), { headers: { Accept: 'application/json' } })
     .then(function (response) {
       if (!response.ok) {
         throw new Error('Unable to load feedback right now.');
@@ -67,6 +193,9 @@ function loadFeedback() {
       return response.json();
     })
     .then(function (data) {
+      if (requestedFilter !== currentFilter) {
+        return;
+      }
       renderItems(data.items || []);
     });
 }
@@ -194,8 +323,7 @@ function submitFeedback(event) {
 
 form.addEventListener('submit', submitFeedback);
 
-// Keyboard dismissal. A keydown with key 'Escape' that bubbles to the form
-// dismisses the current status message and its is-error class -- but only while
+// Keyboard dismissal. A keydown with key 'Escape' that bubbles to the form// dismisses the current status message and its is-error class -- but only while
 // no submission is pending, so the 'Submitting...' message stays visible for an
 // unresolved POST and the pending guard (button, aria-busy, POST) is untouched.
 // Clearing reuses setStatus, which coerces the text and toggles is-error off;
