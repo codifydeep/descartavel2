@@ -140,12 +140,88 @@ function bindFilterControls() {
 bindFilterControls();
 setActiveFilterControl(currentFilter);
 
+// -- Sort state --------------------------------------------------------------
+// The active sort order is page-scope memory only: a single module-local
+// variable, never mirrored into the URL or into storage, so two browsers on the
+// same board sort independently. It is written only by the sort control and read
+// by renderItems; polling, filter changes and successful create/complete all
+// re-render, so the selection survives them.
+var SORT_ID = 'sort-feedback';
+var SORT_NEWEST = 'newest-first';
+var SORT_OLDEST = 'oldest-first';
+// The active order mirrors the control. On load the select's own value is
+// adopted, so the markup ships Newest first as the default; a document without
+// the control (or with an unrecognised value) keeps the natural fetched order,
+// so the legacy board renders exactly as before and the historical DOM shape
+// stays byte-compatible.
+var currentSort = null;
+// The last board the active filter produced, used to re-render on a sort switch
+// without a refetch. It is only ever a reference to the freshly fetched array.
+var lastItems = [];
+
+// Order the rendered rows by the numeric feedback id: descending for Newest
+// first, ascending for Oldest first. Sorting always uses the number, never a
+// timestamp, the fetched order, a string compare, the URL or storage. The
+// fetched array is never mutated: the rows are copied before they are ordered,
+// so an unfiltered "all" response is left byte-for-byte as it arrived and a
+// caller that reuses the array sees no reorder.
+function sortedForView(items) {
+  var rows = items.slice();
+  if (currentSort !== SORT_NEWEST && currentSort !== SORT_OLDEST) {
+    return rows;
+  }
+  rows.sort(function (a, b) {
+    return currentSort === SORT_OLDEST ? a.id - b.id : b.id - a.id;
+  });
+  return rows;
+}
+
+// Apply a selected sort order. The order is page-scope memory only: nothing is
+// written to the URL or to storage, and re-selecting the active order is a
+// no-op. A switch re-renders the rows already on screen for the active filter
+// from the last fetched board, so it never refetches, never resets the form,
+// never touches the submit guard and never disturbs an in-flight submit or the
+// typed draft. (The next poll re-renders into the same order.)
+function applySort(sort) {
+  if (sort !== SORT_NEWEST && sort !== SORT_OLDEST) {
+    return;
+  }
+  if (sort === currentSort) {
+    return;
+  }
+  currentSort = sort;
+  renderItems(lastItems);
+}
+
+// Bind the native select's change event. The control is addressed by id so a
+// document that omits it (or an older page) keeps the natural fetched order
+// without error. The select's shipped value is adopted as the starting order --
+// the markup selects Newest first -- so the default view is Newest first while
+// an unrecognised starting value simply stays natural until the user chooses.
+function bindSortControl() {
+  var control = document.getElementById(SORT_ID);
+  if (!control || !control.addEventListener) {
+    return;
+  }
+  if (control.value === SORT_NEWEST || control.value === SORT_OLDEST) {
+    currentSort = control.value;
+  }
+  control.addEventListener('change', function () {
+    applySort(control.value);
+  });
+}
+
+bindSortControl();
+
 function setStatus(message, isError) {
   status.textContent = message || '';
   status.classList.toggle('is-error', Boolean(isError));
 }
 
 function renderItems(items) {
+  // Remember the last board the active filter produced so a sort switch can
+  // re-render it without refetching (and without touching the draft or guard).
+  lastItems = items || [];
   list.innerHTML = '';
   if (!items.length) {
     // The message names the active filter, so an empty filtered result explains
@@ -155,7 +231,7 @@ function renderItems(items) {
     return;
   }
   emptyState.hidden = true;
-  items.forEach(function (item) {
+  sortedForView(items).forEach(function (item) {
     var entry = document.createElement('li');
     entry.className = 'feedback-item' + (item.completed ? ' is-complete' : '');
 
