@@ -70,10 +70,21 @@ def create_item(conn, title):
     return _as_item(_select(conn, cursor.lastrowid))
 
 
-def list_items(conn):
-    """Return every feedback item in insertion order."""
+def list_items(conn, query=None):
+    """Return every feedback item in insertion order.
+
+    ``query`` is an optional already-trimmed title needle. When it is truthy the
+    listing is narrowed to items whose title contains the needle as a
+    case-insensitive, Unicode-aware substring (``str.casefold`` on both sides).
+    The needle is applied in Python to the parameterized ``SELECT`` result, so it
+    is never interpolated into SQL and cannot alter the query shape.
+    """
     rows = conn.execute('SELECT id, title, completed FROM feedback ORDER BY id').fetchall()
-    return [_as_item(row) for row in rows]
+    items = [_as_item(row) for row in rows]
+    if query:
+        folded = query.casefold()
+        items = [item for item in items if folded in item['title'].casefold()]
+    return items
 
 
 def complete_item(conn, item_id):

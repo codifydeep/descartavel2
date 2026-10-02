@@ -101,9 +101,16 @@ class Handler(BaseHTTPRequestHandler):
                     "invalid status filter: expected 'open' or 'completed'; "
                     "omit the parameter to list every entry")})
                 return
+            # The optional ``q`` narrows the listing to titles containing the
+            # trimmed needle, compared with ``str.casefold``. An absent or
+            # whitespace-only value is exactly the unsearched listing. The
+            # needle is data: it lives in a Python variable and is never
+            # interpolated into SQL.
+            raw_q = occurrences.get('q')
+            needle = raw_q[0].strip() if raw_q else ''
             conn = db.connect()
             try:
-                items = db.list_items(conn)
+                items = db.list_items(conn, needle)
             finally:
                 conn.close()
             if wanted is not None:
