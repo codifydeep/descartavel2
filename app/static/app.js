@@ -56,10 +56,131 @@ function emptyMessageFor(filter) {
 // Build the board GET for the active filter. All omits the status parameter
 // entirely (byte-compatible with the legacy request); open/completed append the
 // single status query parameter the backend contract accepts.
-function feedbackUrl(filter) {
-  var wanted = FILTER_QUERY[filter];
-  return wanted === null ? '/feedback' : '/feedback?status=' + wanted;
+function baseFeedbackUrl() {
+  var wanted = FILTER_QUERY[currentFilter];
+  if (wanted !== null) {
+    return '/feedback?status=' + wanted;
+  }
+  return '/feedback';
 }
+
+// -- Search state ------------------------------------------------------------
+// The active search needle is page-scope memory only: a single module-local
+// variable, never mirrored into the URL or storage, so two browsers on the same
+// board search independently. It is written only by the search control and read
+// by loadFeedback; polling and successful create/complete re-read it, so the
+// typed search survives them.
+var SEARCH_ID = 'feedback-search';
+var SEARCH_DEBOUNCE_MS = 200;
+var currentSearch = '';
+
+function feedbackUrl(filter) {
+  var base = baseFeedbackUrl();
+  var needle = String(currentSearch).trim();
+  if (!needle) {
+    return base;
+  }
+  return base + '?q=' + encodeQueryComponent(needle);
+}
+
+// Percent-encode a query value without relying on the host's
+// encodeURIComponent: the search control is driven in harnesses whose global
+// may not expose it, and the board must still build a well-formed needle.
+// Every byte outside the unreserved set is emitted as %XX uppercase hex.
+function encodeQueryComponent(value) {
+  var text = String(value);
+  var out = '';
+  for (var i = 0; i < text.length; i += 1) {
+    var code = text.charCodeAt(i);
+    if ((code >= 0x41 && code <= 0x5A) || (code >= 0x61 && code <= 0x7A) ||
+        (code >= 0x30 && code <= 0x39) ||
+        code === 0x2D || code === 0x5F || code === 0x2E || code === 0x7E) {
+      out += text.charAt(i);
+    } else if (code < 0x80) {
+      var hex = code.toString(16).toUpperCase();
+      out += '%' + (hex.length < 2 ? '0' + hex : hex);
+    } else {
+      var utf8 = unescapeUtf8(text.charAt(i));
+      for (var j = 0; j < utf8.length; j += 1) {
+        var byteHex = utf8[j].toString(16).toUpperCase();
+        out += '%' + (byteHex.length < 2 ? '0' + byteHex : byteHex);
+      }
+    }
+  }
+  return out;
+}
+
+// Encode one UTF-16 code unit as the UTF-8 byte sequence, as an array of byte
+// values. Surrogate pairs arriving one unit at a time are encoded per unit,
+// matching how a lone unit would be replaced; well-formed input is unchanged.
+function unescapeUtf8(ch) {
+  var code = ch.charCodeAt(0);
+  if (code < 0x80) {
+    return [code];
+  }
+  if (code < 0x800) {
+    return [0xC0 | (code >> 6), 0x80 | (code & 0x3F)];
+  }
+  return [0xE0 | (code >> 12), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F)];
+}
+
+// Reconcile the page's search state with the search control. A document with
+// neither control nor module state keeps the historical unsearched request, so
+// the legacy board renders exactly as before.
+function currentSearchNeedle() {
+  var control = document.getElementById(SEARCH_ID);
+  if (control && typeof control.value === 'string') {
+    return control.value.trim();
+  }
+  return String(currentSearch).trim();
+}
+
+// The search control narrows the listing on input, debounced so a burst of
+// keystrokes issues a single board GET. It never resets the form, touches the
+// submit guard or the status message, so it cannot disturb an in-flight submit
+// or the typed draft; the next poll re-reads the same needle.
+function bindSearchControl() {
+  var control = document.getElementById(SEARCH_ID);
+  if (!control || !control.addEventListener) {
+    return;
+  }
+  control.addEventListener('input', function () {
+    currentSearch = String(control.value == null ? '' : control.value);
+    if (searchTimer !== null) {
+      clearTimeout(searchTimer);
+    }
+    searchTimer = setTimeout(function () {
+      searchTimer = null;
+      loadFeedback().catch(function () {
+        // Stay quiet on transient search errors; the next poll retries.
+      });
+    }, SEARCH_DEBOUNCE_MS);
+  });
+  // Enter commits the typed needle immediately, without waiting out the
+  // debounce. It applies the same page-scope search memory the debounced path
+  // writes -- a blank needle trims away, so the next request omits q -- and it
+  // never resets the form, touches the submit guard or the status message, so
+  // the typed draft and an in-flight submit are left exactly as they were. The
+  // default is not prevented here (the input is not a submit control), but the
+  // handler is a no-op for any other key so a stray Escape/typing falls through
+  // to the existing handlers untouched.
+  control.addEventListener('keydown', function (event) {
+    if (!event || event.key !== 'Enter') {
+      return;
+    }
+    if (searchTimer !== null) {
+      clearTimeout(searchTimer);
+      searchTimer = null;
+    }
+    currentSearch = String(control.value == null ? '' : control.value);
+    loadFeedback().catch(function () {
+      // Stay quiet on transient search errors; the next poll retries.
+    });
+  });
+}
+
+var searchTimer = null;
+bindSearchControl();
 
 // Resolve a filter-control id back to the filter it selects. The reverse of
 // FILTER_CONTROL_IDS; anything outside the three controls resolves to null.
@@ -254,13 +375,14 @@ function renderItems(items) {
   });
 }
 
-// Fetch the board for the active filter. The filter is captured when the
-// request is issued; when the response resolves the client discards it if the
-// active filter has since changed, so a slow poll under a previous filter can
-// never repaint the current view (and never paints a body the user no longer
-// asked for).
+// Fetch the board for the active filter and search needle. The filter and the
+// search needle are captured when the request is issued; when the response
+// resolves the client discards it if either has since changed, so a slow poll
+// under a previous view can never repaint the current one (and never paints a
+// body the user no longer asked for).
 function loadFeedback() {
   var requestedFilter = currentFilter;
+  var requestedSearch = currentSearchNeedle();
   return fetch(feedbackUrl(requestedFilter), { headers: { Accept: 'application/json' } })
     .then(function (response) {
       if (!response.ok) {
@@ -269,7 +391,7 @@ function loadFeedback() {
       return response.json();
     })
     .then(function (data) {
-      if (requestedFilter !== currentFilter) {
+      if (requestedFilter !== currentFilter || requestedSearch !== currentSearchNeedle()) {
         return;
       }
       renderItems(data.items || []);
