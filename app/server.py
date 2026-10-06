@@ -73,7 +73,11 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
-        if path == '/ready':
+        if path in ('/ready', '/healthz'):
+            # ``/healthz`` is a readiness alias for ``/ready``: same status,
+            # same content type and the same body. The query string is parsed
+            # off ``self.path`` (see ``urlsplit`` above) so probes such as
+            # ``/healthz?probe=1`` resolve to this route unchanged.
             self._send_json(200, {'status': 'ready',
                                   'source_sha': os.environ.get('SOURCE_SHA', 'local')})
             return
