@@ -64,6 +64,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path == '/livez':
+            # Liveness alias of ``/health``: HTTP 200, ``application/json`` and
+            # the exact body ``{"status": "ok"}`` with no ``source_sha`` (or any
+            # other key) leaked in. ``urlsplit`` above drops the query string so
+            # probes such as ``/livez?probe=1`` resolve to this route unchanged.
+            self._send_json(200, {'status': 'ok'})
+            return
         if path == '/health':
             body = json.dumps({'status': 'ok',
                                'source_sha': os.environ.get('SOURCE_SHA', 'local')}).encode()
