@@ -38,6 +38,25 @@ body {
   color: var(--muted);
 }
 
+/* Service-availability indicator. The state is carried by a visible text label
+   and a leading glyph, so the status is never conveyed by color alone; the
+   classed variants only reinforce the wording. */
+.service-status {
+  margin: -0.75rem 0 1.5rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.service-status.is-available::before {
+  content: "\25CF\00A0";
+  color: var(--done);
+}
+
+.service-status.is-unavailable::before {
+  content: "\25CF\00A0";
+  color: var(--error);
+}
+
 .feedback-form,
 .feedback-section {
   background: var(--panel);

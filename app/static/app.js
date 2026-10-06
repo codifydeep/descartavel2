@@ -1,6 +1,64 @@
 loadSummary();
 'use strict';
 
+// Service-availability probe. Runs exactly once per page load and never
+// repeats: the board poll below only refreshes summary/feedback, so the
+// indicator is a load-time snapshot, not a continuous uptime monitor. The
+// result is the exact text the page's accessible #service-status live region
+// shows -- the initial value is whatever that element shipped. The probe
+// touches only that element, so it can never reset the form, clear a draft or
+// disturb filter/search/sort.
+var SERVICE_STATUS_ID = 'service-status';
+var SERVICE_STATUS_URL = '/service-status';
+var SERVICE_CHECKING_TEXT = 'Checking service\u2026';
+var SERVICE_AVAILABLE_TEXT = 'Service available';
+var SERVICE_UNAVAILABLE_TEXT = 'Service unavailable';
+
+function renderServiceStatus(text, stateClass) {
+  var indicator = document.getElementById(SERVICE_STATUS_ID);
+  if (!indicator) {
+    return;
+  }
+  indicator.textContent = text;
+  if (indicator.classList) {
+    indicator.classList.toggle('is-available', stateClass === 'available');
+    indicator.classList.toggle('is-unavailable', stateClass === 'unavailable');
+  }
+}
+
+function checkServiceStatus() {
+  // Resolve the same-origin relative path exactly, with a GET and no cache
+  // bypass parameter. A transport failure, a non-200, unparseable JSON or any
+  // body that is not exactly the success payload all read as unavailable; only
+  // the exact {"status":"available"} object yields available.
+  return fetch(SERVICE_STATUS_URL, { method: 'GET' }).then(function (response) {
+    if (!response.ok) {
+      return null;
+    }
+    return response.json().catch(function () { return null; });
+  }).then(function (data) {
+    if (data && data.status === 'available' && Object.keys(data).length === 1) {
+      renderServiceStatus(SERVICE_AVAILABLE_TEXT, 'available');
+    } else {
+      renderServiceStatus(SERVICE_UNAVAILABLE_TEXT, 'unavailable');
+    }
+  }).catch(function () {
+    renderServiceStatus(SERVICE_UNAVAILABLE_TEXT, 'unavailable');
+  });
+}
+
+// The indicator starts in the checking state. The markup already ships this
+// exact text for a script-less page; re-asserting it here guarantees the live
+// region reads 'Checking service…' from the moment the client runs until the
+// single probe resolves. A document with no such region is the legacy board:
+// it keeps the historical execute-time shape (summary then board, exactly two
+// GETs) and issues no availability request at all.
+if (document.getElementById(SERVICE_STATUS_ID)) {
+  renderServiceStatus(SERVICE_CHECKING_TEXT, null);
+  checkServiceStatus();
+}
+
+
 // Feedback board client. Lists feedback, submits new items, toggles completion,
 // and polls the API so a second browser stays in sync.
 //
