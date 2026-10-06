@@ -32,6 +32,13 @@ let status = document.getElementById(STATUS_ID);
 var FILTER_ALL = 'all';
 var currentFilter = FILTER_ALL;
 
+// Per-page board-request generation. `loadFeedback` increments it when it
+// issues a GET and stamps that number on the response; a response is painted
+// only while its number is still the newest issued. It is page-scope memory
+// only -- never mirrored into the URL or storage -- and is never reset, so an
+// older generation can never become current again.
+var requestGeneration = 0;
+
 var FILTER_CONTROL_IDS = {
   all: 'filter-all',
   open: 'filter-open',
@@ -383,6 +390,16 @@ function renderItems(items) {
 function loadFeedback() {
   var requestedFilter = currentFilter;
   var requestedSearch = currentSearchNeedle();
+  // Per-page request generation. Each board GET takes the next number; a
+  // response is painted only when its number is still the newest one issued.
+  // A newer request for the identical view therefore retires every earlier
+  // one, even though currentFilter and the search needle are byte-identical
+  // across the two -- the identity guard below alone cannot see that case.
+  // The counter never resets, so a generation issued before a query/status
+  // round-trip back to the original view stays retired once a fresher request
+  // for that view has been issued.
+  requestGeneration += 1;
+  var generation = requestGeneration;
   return fetch(feedbackUrl(requestedFilter), { headers: { Accept: 'application/json' } })
     .then(function (response) {
       if (!response.ok) {
@@ -391,6 +408,9 @@ function loadFeedback() {
       return response.json();
     })
     .then(function (data) {
+      if (generation !== requestGeneration) {
+        return;
+      }
       if (requestedFilter !== currentFilter || requestedSearch !== currentSearchNeedle()) {
         return;
       }
