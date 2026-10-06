@@ -64,6 +64,20 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path == '/service-status':
+            # Static service-availability endpoint: HTTP 200 with the exact
+            # 22-byte body ``{"status":"available"}`` and a pinned JSON content
+            # type. The value is a fixed literal -- the query string is dropped
+            # by ``urlsplit`` above and never reflected -- so probes such as
+            # ``/service-status?probe=1`` resolve here byte-for-byte unchanged,
+            # and no version/build/env detail leaks.
+            body = b'{"status":"available"}'
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if path in ('/pulse', '/livez', '/ping', '/healthcheck', '/livecheck'):
             # Liveness aliases of ``/health``: HTTP 200, ``application/json``
             # and the exact body ``{"status": "ok"}`` with no ``source_sha`` (or
