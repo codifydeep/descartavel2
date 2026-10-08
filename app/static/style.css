@@ -57,6 +57,26 @@ body {
   color: var(--error);
 }
 
+/* Demo-environment indicator. A second status line of its own, scoped by the
+   #service-mode class so no existing rule or layout is disturbed. The state is
+   carried by a visible text label and a leading glyph, so the result is never
+   conveyed by color alone; the classed variants only reinforce the wording. */
+.service-mode {
+  margin: -1rem 0 1.5rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.service-mode.is-demo::before {
+  content: "\25CF\00A0";
+  color: var(--done);
+}
+
+.service-mode.is-unavailable::before {
+  content: "\25CF\00A0";
+  color: var(--error);
+}
+
 .feedback-form,
 .feedback-section {
   background: var(--panel);

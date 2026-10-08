@@ -58,6 +58,65 @@ if (document.getElementById(SERVICE_STATUS_ID)) {
   checkServiceStatus();
 }
 
+// Demo-environment probe. Runs exactly once per page load and never repeats:
+// no timer, interval, retry or poll re-issues it, so the request count for
+// /service-mode is exactly one per load. The result is written only to the
+// dedicated accessible #service-mode live region -- the initial value is
+// whatever that element shipped -- so the probe can never reset the form,
+// clear a draft, or disturb filter/search/sort state, and nothing is written to
+// the URL or to storage, so two browser contexts stay independent. A document
+// that ships no #service-mode region is the legacy board: the probe is not
+// issued at all.
+var SERVICE_MODE_ID = 'service-mode';
+var SERVICE_MODE_URL = '/service-mode';
+var SERVICE_MODE_CHECKING_TEXT = 'Checking environment\u2026';
+var SERVICE_MODE_DEMO_TEXT = 'Demo environment';
+var SERVICE_MODE_UNAVAILABLE_TEXT = 'Environment unavailable';
+
+function renderServiceMode(text, stateClass) {
+  var indicator = document.getElementById(SERVICE_MODE_ID);
+  if (!indicator) {
+    return;
+  }
+  indicator.textContent = text;
+  if (indicator.classList) {
+    indicator.classList.toggle('is-demo', stateClass === 'demo');
+    indicator.classList.toggle('is-unavailable', stateClass === 'unavailable');
+  }
+}
+
+function checkServiceMode() {
+  // Resolve the same-origin relative path exactly, with a GET and no cache
+  // bypass parameter. Only HTTP 200 with parseable JSON whose own-key set is
+  // exactly {mode} and whose value is the literal 'demo' yields the demo state;
+  // a transport failure, a non-200, unparseable JSON, any extra or missing key,
+  // or any other mode value (including another valid one) reads as unavailable,
+  // with no mode-specific message.
+  return fetch(SERVICE_MODE_URL, { method: 'GET' }).then(function (response) {
+    if (!response.ok) {
+      return null;
+    }
+    return response.json().catch(function () { return null; });
+  }).then(function (data) {
+    if (data && data.mode === 'demo' && Object.keys(data).length === 1) {
+      renderServiceMode(SERVICE_MODE_DEMO_TEXT, 'demo');
+    } else {
+      renderServiceMode(SERVICE_MODE_UNAVAILABLE_TEXT, 'unavailable');
+    }
+  }).catch(function () {
+    renderServiceMode(SERVICE_MODE_UNAVAILABLE_TEXT, 'unavailable');
+  });
+}
+
+// The indicator starts in the checking state. The markup already ships this
+// exact text for a script-less page; re-asserting it here guarantees the live
+// region reads 'Checking environment…' from the moment the client runs until
+// the single probe resolves.
+if (document.getElementById(SERVICE_MODE_ID)) {
+  renderServiceMode(SERVICE_MODE_CHECKING_TEXT, null);
+  checkServiceMode();
+}
+
 
 // Feedback board client. Lists feedback, submits new items, toggles completion,
 // and polls the API so a second browser stays in sync.
