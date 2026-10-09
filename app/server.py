@@ -20,6 +20,39 @@ _CONTENT_TYPES = {
 }
 
 
+_INVALID_STATUS = object()
+
+
+def _filtered_feedback(query):
+    """Apply the shared ``status``/``q`` filter used by GET /feedback and /feedback/count.
+
+    Returns the filtered item list, or ``_INVALID_STATUS`` when the ``status``
+    parameter is not exactly one of ``open``/``completed`` and not absent. The
+    query string is parsed once here so both routes stay in lockstep.
+    """
+    occurrences = parse_qs(query, keep_blank_values=True)
+    values = occurrences.get('status')
+    if values is None:
+        wanted = None
+    elif len(values) == 1 and values[0] in ('open', 'completed'):
+        wanted = values[0] == 'completed'
+    else:
+        return _INVALID_STATUS
+    # The optional ``q`` narrows the listing to titles containing the trimmed
+    # needle. An absent or whitespace-only value is the unsearched listing. The
+    # needle is data: it is never interpolated into SQL.
+    raw_q = occurrences.get('q')
+    needle = raw_q[0].strip() if raw_q else ''
+    conn = db.connect()
+    try:
+        items = db.list_items(conn, needle)
+    finally:
+        conn.close()
+    if wanted is not None:
+        items = [item for item in items if item['completed'] is wanted]
+    return items
+
+
 class Handler(BaseHTTPRequestHandler):
     def _send_json(self, status, payload):
         body = json.dumps(payload).encode()
@@ -129,32 +162,23 @@ class Handler(BaseHTTPRequestHandler):
             # other shape -- an empty value, an explicit ``all``, an unknown
             # value, repeated keys or an empty token alongside a valid one --
             # is rejected outright rather than silently treated as All.
-            occurrences = parse_qs(urlsplit(self.path).query, keep_blank_values=True)
-            values = occurrences.get('status')
-            if values is None:
-                wanted = None
-            elif len(values) == 1 and values[0] in ('open', 'completed'):
-                wanted = values[0] == 'completed'
-            else:
+            items = _filtered_feedback(urlsplit(self.path).query)
+            if items is _INVALID_STATUS:
                 self._send_json(400, {'error': (
                     "invalid status filter: expected 'open' or 'completed'; "
                     "omit the parameter to list every entry")})
                 return
-            # The optional ``q`` narrows the listing to titles containing the
-            # trimmed needle, compared with ``str.casefold``. An absent or
-            # whitespace-only value is exactly the unsearched listing. The
-            # needle is data: it lives in a Python variable and is never
-            # interpolated into SQL.
-            raw_q = occurrences.get('q')
-            needle = raw_q[0].strip() if raw_q else ''
-            conn = db.connect()
-            try:
-                items = db.list_items(conn, needle)
-            finally:
-                conn.close()
-            if wanted is not None:
-                items = [item for item in items if item['completed'] is wanted]
             self._send_json(200, {'items': items})
+            return
+        if path == '/feedback/count':
+            # Read-only count of exactly the items GET /feedback returns for the
+            # same ``status`` and ``q``. Shares the filter above, so the count
+            # cannot drift from the listing. Any invalid status is a fixed 400.
+            items = _filtered_feedback(urlsplit(self.path).query)
+            if items is _INVALID_STATUS:
+                self._send_json(400, {'error': 'Invalid count filter'})
+                return
+            self._send_json(200, {'count': len(items)})
             return
         if path.startswith('/feedback/') and path != '/feedback/summary':
             # ``GET /feedback/<id>``: the id must be a canonical positive
