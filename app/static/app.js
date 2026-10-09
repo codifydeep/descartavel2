@@ -204,7 +204,8 @@ function feedbackUrl(filter) {
   if (!needle) {
     return base;
   }
-  return base + '?q=' + encodeQueryComponent(needle);
+  var separator = base.indexOf('?') === -1 ? '?' : '&';
+  return base + separator + 'q=' + encodeQueryComponent(needle);
 }
 
 // Percent-encode a query value without relying on the host's
