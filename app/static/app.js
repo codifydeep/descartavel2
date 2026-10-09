@@ -583,6 +583,7 @@ function loadMatchCount() {
   if (!element) {
     return Promise.resolve();
   }
+  element.textContent = 'Matching: \u2026';
   return fetch(matchCountUrl(), { headers: { Accept: 'application/json' } })
     .then(function (response) {
       if (!response.ok) {
