@@ -493,6 +493,16 @@ function renderItems(items) {
     toggle.addEventListener('click', function () {
       completeItem(item.id);
     });
+
+    var details = document.createElement('button');
+    details.type = 'button';
+    details.className = 'details-button';
+    details.textContent = 'View details';
+    details.addEventListener('click', function () {
+      openDetails(item.id);
+    });
+    entry.appendChild(details);
+
     entry.appendChild(toggle);
 
     list.appendChild(entry);
@@ -564,6 +574,109 @@ function loadSummary() {
       region.setAttribute('aria-busy', 'false');
     });
 }
+
+// -- Detail panel ------------------------------------------------------------
+// One local panel, shown beside the list, for the item the user asked about.
+// Every View details click takes a new token and fetches that item once. A
+// response paints the panel only while its token is still the newest; closing
+// or selecting another item retires the token, so a stale response can never
+// reopen or overwrite the panel. The detail never touches the URL, storage,
+// the title draft, search, filter or sort, and never navigates or submits.
+var DETAIL_ID = 'feedback-detail';
+var DETAIL_CLOSE_ID = 'feedback-detail-close';
+var DETAIL_LOADING_TEXT = 'Loading details\u2026';
+var DETAIL_UNAVAILABLE_TEXT = 'Details unavailable';
+var DETAIL_CLOSE_TEXT = 'Close details';
+var detailToken = 0;
+
+function detailRegion() {
+  return document.getElementById(DETAIL_ID);
+}
+
+function setDetailBody(text) {
+  var region = detailRegion();
+  if (!region) {
+    return;
+  }
+  var body = region.querySelector('.feedback-detail-body');
+  if (body) {
+    body.textContent = text;
+  }
+}
+
+function showDetailRegion(visible) {
+  var region = detailRegion();
+  if (!region) {
+    return;
+  }
+  region.hidden = !visible;
+}
+
+function renderDetail(item) {
+  var region = detailRegion();
+  if (!region) {
+    return;
+  }
+  var body = region.querySelector('.feedback-detail-body');
+  if (!body) {
+    return;
+  }
+  body.textContent = '';
+  var heading = document.createElement('strong');
+  heading.className = 'feedback-detail-title';
+  heading.textContent = item.title;
+  body.appendChild(heading);
+  body.appendChild(document.createTextNode(' '));
+  var state = document.createElement('span');
+  state.className = 'feedback-detail-state';
+  state.textContent = item.completed ? 'Completed' : 'Open';
+  body.appendChild(state);
+}
+
+function openDetails(id) {
+  detailToken += 1;
+  var token = detailToken;
+  showDetailRegion(true);
+  setDetailBody(DETAIL_LOADING_TEXT);
+  return fetch('/feedback/' + id, { headers: { Accept: 'application/json' } })
+    .then(function (response) {
+      if (!response.ok) {
+        throw new Error(DETAIL_UNAVAILABLE_TEXT);
+      }
+      return response.json();
+    })
+    .then(function (data) {
+      if (token !== detailToken) {
+        return;
+      }
+      if (!data || !data.item) {
+        throw new Error(DETAIL_UNAVAILABLE_TEXT);
+      }
+      renderDetail(data.item);
+    })
+    .catch(function () {
+      if (token !== detailToken) {
+        return;
+      }
+      setDetailBody(DETAIL_UNAVAILABLE_TEXT);
+    });
+}
+
+function closeDetails() {
+  // Retire any in-flight request so its late response cannot reopen the panel.
+  detailToken += 1;
+  showDetailRegion(false);
+}
+
+function bindDetailControls() {
+  var close = document.getElementById(DETAIL_CLOSE_ID);
+  if (close && close.addEventListener) {
+    close.textContent = DETAIL_CLOSE_TEXT;
+    close.addEventListener('click', closeDetails);
+  }
+}
+
+bindDetailControls();
 
 function completeItem(id) {
   return fetch('/feedback/' + id + '/complete', { method: 'POST' })

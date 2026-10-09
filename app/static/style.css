@@ -164,3 +164,35 @@ body {
   color: var(--done);
   border-color: var(--done);
 }
+
+.details-button,
+.detail-close-button {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  margin-right: 0.4rem;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.feedback-detail {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.feedback-detail[hidden] {
+  display: none;
+}
+
+.feedback-detail-body {
+  margin: 0 0 0.5rem;
+}
+
+.feedback-detail-state {
+  color: var(--muted);
+}
