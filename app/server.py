@@ -156,6 +156,26 @@ class Handler(BaseHTTPRequestHandler):
                 items = [item for item in items if item['completed'] is wanted]
             self._send_json(200, {'items': items})
             return
+        if path.startswith('/feedback/') and path != '/feedback/summary':
+            # ``GET /feedback/<id>``: the id must be a canonical positive
+            # integer (no sign, no leading zeros, digits only). Anything else
+            # is a fixed 400; a well-formed id with no row is a fixed 404. The
+            # query string is dropped by ``urlsplit`` above, so it never
+            # changes the result.
+            raw_id = path[len('/feedback/'):]
+            if not (raw_id.isascii() and raw_id.isdigit()) or raw_id[0] == '0':
+                self._send_json(400, {'error': 'Invalid feedback id'})
+                return
+            conn = db.connect()
+            try:
+                item = db.get_item(conn, int(raw_id))
+            finally:
+                conn.close()
+            if item is None:
+                self._send_json(404, {'error': 'Feedback not found'})
+                return
+            self._send_json(200, {'item': item})
+            return
         if path == '/feedback/summary':
             conn = db.connect()
             try:

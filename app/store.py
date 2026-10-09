@@ -53,6 +53,11 @@ def _select(conn, item_id):
         'SELECT id, title, completed FROM feedback WHERE id = ?', (item_id,)).fetchone()
 
 
+def get_item(conn, item_id):
+    """Return one feedback item by id, or None when it does not exist."""
+    return _as_item(_select(conn, item_id))
+
+
 def create_item(conn, title):
     """Create a feedback item, rejecting blank or duplicate titles outright."""
     if not isinstance(title, str):
