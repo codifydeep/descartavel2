@@ -180,6 +180,17 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self._send_json(200, {'count': len(items)})
             return
+        if path == '/feedback/latest':
+            # Read-only identity of the highest positive ID among exactly the
+            # items GET /feedback returns for the same ``status`` and ``q``.
+            # Shares the filter above, so it cannot drift from the listing.
+            items = _filtered_feedback(urlsplit(self.path).query)
+            if items is _INVALID_STATUS:
+                self._send_json(400, {'error': 'Invalid latest filter'})
+                return
+            ids = [item['id'] for item in items if item['id'] > 0]
+            self._send_json(200, {'latest_id': max(ids) if ids else None})
+            return
         if path.startswith('/feedback/') and path != '/feedback/summary':
             # ``GET /feedback/<id>``: the id must be a canonical positive
             # integer (no sign, no leading zeros, digits only). Anything else
