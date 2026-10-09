@@ -177,6 +177,13 @@ body {
   cursor: pointer;
 }
 
+.feedback-search + .match-count,
+.match-count {
+  margin: 0.4rem 0 0.6rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
 .feedback-detail {
   margin-top: 1rem;
   padding: 0.75rem 1rem;

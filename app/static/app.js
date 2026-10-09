@@ -276,6 +276,7 @@ function bindSearchControl() {
     }
     searchTimer = setTimeout(function () {
       searchTimer = null;
+      loadMatchCount();
       loadFeedback().catch(function () {
         // Stay quiet on transient search errors; the next poll retries.
       });
@@ -298,6 +299,7 @@ function bindSearchControl() {
       searchTimer = null;
     }
     currentSearch = String(control.value == null ? '' : control.value);
+    loadMatchCount();
     loadFeedback().catch(function () {
       // Stay quiet on transient search errors; the next poll retries.
     });
@@ -351,6 +353,7 @@ function applyFilter(filter) {
   // Refresh the board and the whole-board counters for the new selection. The
   // counters stay whole-board, so a switch never narrows them.
   loadSummary();
+  loadMatchCount();
   loadFeedback().catch(function () {
     // Stay quiet on transient filter-switch errors; the next poll retries.
   });
@@ -543,6 +546,65 @@ function loadFeedback() {
         return;
       }
       renderItems(data.items || []);
+    });
+}
+
+// -- Matching count ----------------------------------------------------------
+// Server-backed count of the active status and search, from GET /feedback/count.
+// Sequenced by its own generation so a superseded response cannot overwrite the
+// count for the selected query. Sort is excluded; the request is read-only.
+var MATCH_COUNT_ID = 'feedback-match-count';
+var MATCH_COUNT_PREFIX = 'Matching: ';
+var MATCH_COUNT_UNAVAILABLE = 'Matching unavailable';
+var matchCountGeneration = 0;
+
+function matchCountUrl() {
+  var params = [];
+  var wanted = FILTER_QUERY[currentFilter];
+  if (wanted !== null) {
+    params.push('status=' + wanted);
+  }
+  var needle = String(currentSearch).trim();
+  if (needle) {
+    params.push('q=' + encodeQueryComponent(needle));
+  }
+  return params.length ? '/feedback/count?' + params.join('&') : '/feedback/count';
+}
+
+function isValidCount(value) {
+  return typeof value === 'number' && isFinite(value) && value >= 0 &&
+    Math.floor(value) === value;
+}
+
+function loadMatchCount() {
+  matchCountGeneration += 1;
+  var generation = matchCountGeneration;
+  var element = document.getElementById(MATCH_COUNT_ID);
+  if (!element) {
+    return Promise.resolve();
+  }
+  return fetch(matchCountUrl(), { headers: { Accept: 'application/json' } })
+    .then(function (response) {
+      if (!response.ok) {
+        throw new Error(MATCH_COUNT_UNAVAILABLE);
+      }
+      return response.json();
+    })
+    .then(function (data) {
+      if (generation !== matchCountGeneration) {
+        return;
+      }
+      if (!data || typeof data !== 'object' || Object.keys(data).length !== 1 ||
+          !isValidCount(data.count)) {
+        element.textContent = MATCH_COUNT_UNAVAILABLE;
+        return;
+      }
+      element.textContent = MATCH_COUNT_PREFIX + data.count;
+    })
+    .catch(function () {
+      if (generation === matchCountGeneration) {
+        element.textContent = MATCH_COUNT_UNAVAILABLE;
+      }
     });
 }
 
@@ -798,6 +860,7 @@ loadFeedback().catch(function (error) {
 // Poll so every open board reflects changes made in another browser.
 setInterval(function () {
   loadSummary();
+  loadMatchCount();
   loadFeedback().catch(function () {
     // Stay quiet on transient polling errors; the next tick retries.
   });
