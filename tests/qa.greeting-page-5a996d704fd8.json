@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "checks": [
+    {
+      "id": "AC1",
+      "path": "/",
+      "actions": [
+        {"action": "fill", "selector": "[data-testid=\"name-input\"]", "value": "  Ana  "},
+        {"action": "click", "selector": "[data-testid=\"submit\"]"}
+      ],
+      "selector": "[data-testid=\"greeting\"]",
+      "text": "Hello, Ana!"
+    },
+    {
+      "id": "AC2",
+      "path": "/",
+      "actions": [
+        {"action": "fill", "selector": "[data-testid=\"name-input\"]", "value": "   "},
+        {"action": "click", "selector": "[data-testid=\"submit\"]"}
+      ],
+      "selector": "[data-testid=\"validation\"]",
+      "text": "Please enter a display name."
+    }
+  ]
+}
