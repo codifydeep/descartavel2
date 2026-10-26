@@ -9,7 +9,7 @@
         {"action": "click", "selector": "#greet-button"}
       ],
       "selector": "#greeting",
-      "text": "Ana"
+      "text": "Hello, Ana! Welcome."
     },
     {
       "id": "AC2",
@@ -19,7 +19,7 @@
         {"action": "click", "selector": "#greet-button"}
       ],
       "selector": "#name-error",
-      "text": "Please enter a name"
+      "text": "Please enter a name before greeting."
     }
   ]
 }
