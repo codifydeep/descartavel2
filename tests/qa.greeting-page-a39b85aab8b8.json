@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "checks": [
+    {
+      "id": "AC1",
+      "path": "/",
+      "actions": [
+        {"action": "fill", "selector": "#display-name", "value": "  Ana  "},
+        {"action": "click", "selector": "#greet"}
+      ],
+      "selector": "#greeting",
+      "text": "Hello, Ana!"
+    },
+    {
+      "id": "AC2",
+      "path": "/",
+      "actions": [
+        {"action": "fill", "selector": "#display-name", "value": "   "},
+        {"action": "click", "selector": "#greet"}
+      ],
+      "selector": "#validation",
+      "text": "Please enter a display name."
+    }
+  ]
+}
