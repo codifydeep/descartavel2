@@ -18,6 +18,7 @@ PAGE = """<!DOCTYPE html>
 <label for="display-name">Display name</label>
 <input id="display-name" name="display-name" type="text" autocomplete="off">
 <button id="greet" type="submit">Greet</button>
+<button id="reset" type="button">Reset</button>
 <p id="validation" role="alert"></p>
 </form>
 <p id="greeting"></p>
@@ -27,6 +28,12 @@ PAGE = """<!DOCTYPE html>
   var input = document.getElementById('display-name');
   var validation = document.getElementById('validation');
   var greeting = document.getElementById('greeting');
+  var reset = document.getElementById('reset');
+  reset.addEventListener('click', function () {
+    input.value = '';
+    greeting.textContent = '';
+    validation.textContent = '';
+  });
   form.addEventListener('submit', function (event) {
     event.preventDefault();
     var name = input.value.trim();
