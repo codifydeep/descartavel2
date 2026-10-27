@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "checks": [
+    {
+      "id": "AC3",
+      "path": "/",
+      "actions": [
+        {"action": "fill", "selector": "#display-name", "value": "Ana"},
+        {"action": "click", "selector": "#greet"},
+        {"action": "click", "selector": "#reset"},
+        {"action": "click", "selector": "#greet"}
+      ],
+      "selector": "#validation",
+      "text": "Please enter a display name."
+    },
+    {
+      "id": "AC7",
+      "path": "/",
+      "actions": [
+        {"action": "fill", "selector": "#display-name", "value": "   "},
+        {"action": "click", "selector": "#greet"},
+        {"action": "fill", "selector": "#display-name", "value": "Ana"},
+        {"action": "click", "selector": "#greet"}
+      ],
+      "selector": "#greeting",
+      "text": "Hello, Ana!"
+    },
+    {
+      "id": "AC8",
+      "path": "/",
+      "actions": [
+        {"action": "fill", "selector": "#display-name", "value": "Ana"},
+        {"action": "click", "selector": "#reset"}
+      ],
+      "selector": "h1",
+      "text": "Greeting"
+    }
+  ]
+}
