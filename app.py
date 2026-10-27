@@ -19,6 +19,7 @@ PAGE = """<!DOCTYPE html>
 <input id="display-name" name="display-name" type="text" autocomplete="off">
 <button id="greet" type="submit">Greet</button>
 <button id="reset" type="button">Reset</button>
+<button id="undo" type="button" disabled>Undo last Reset</button>
 <p id="validation" role="alert"></p>
 </form>
 <p id="greeting"></p>
@@ -29,13 +30,36 @@ PAGE = """<!DOCTYPE html>
   var validation = document.getElementById('validation');
   var greeting = document.getElementById('greeting');
   var reset = document.getElementById('reset');
+  var undo = document.getElementById('undo');
+  var snapshot = null;
+  function setUndo(available) {
+    undo.disabled = !available;
+  }
   reset.addEventListener('click', function () {
+    snapshot = {
+      value: input.value,
+      greeting: greeting.textContent,
+      validation: validation.textContent
+    };
+    setUndo(true);
     input.value = '';
     greeting.textContent = '';
     validation.textContent = '';
   });
+  undo.addEventListener('click', function () {
+    if (snapshot === null) {
+      return;
+    }
+    input.value = snapshot.value;
+    greeting.textContent = snapshot.greeting;
+    validation.textContent = snapshot.validation;
+    snapshot = null;
+    setUndo(false);
+  });
   form.addEventListener('submit', function (event) {
     event.preventDefault();
+    snapshot = null;
+    setUndo(false);
     var name = input.value.trim();
     if (name === '') {
       greeting.textContent = '';
