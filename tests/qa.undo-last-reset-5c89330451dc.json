@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "checks": [
+    {
+      "id": "AC4",
+      "path": "/",
+      "actions": [
+        {"action": "fill", "selector": "#display-name", "value": "Ana"},
+        {"action": "click", "selector": "#greet"},
+        {"action": "click", "selector": "#reset"},
+        {"action": "click", "selector": "#undo"}
+      ],
+      "selector": "#greeting",
+      "text": "Hello, Ana!"
+    },
+    {
+      "id": "AC5",
+      "path": "/",
+      "actions": [
+        {"action": "fill", "selector": "#display-name", "value": "Ana"},
+        {"action": "click", "selector": "#greet"},
+        {"action": "click", "selector": "#reset"},
+        {"action": "click", "selector": "#undo"},
+        {"action": "fill", "selector": "#display-name", "value": "Bo"},
+        {"action": "click", "selector": "#greet"}
+      ],
+      "selector": "#greeting",
+      "text": "Hello, Bo!"
+    },
+    {
+      "id": "AC6",
+      "path": "/",
+      "actions": [
+        {"action": "fill", "selector": "#display-name", "value": "Ana"},
+        {"action": "click", "selector": "#greet"},
+        {"action": "click", "selector": "#reset"},
+        {"action": "fill", "selector": "#display-name", "value": "Bo"},
+        {"action": "click", "selector": "#greet"}
+      ],
+      "selector": "#greeting",
+      "text": "Hello, Bo!"
+    }
+  ]
+}
